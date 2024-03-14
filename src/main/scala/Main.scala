@@ -44,6 +44,21 @@ object Main {
     case _ => true
   }
 
+
+  /*
+  ;; Checks if a list has any duplicate symbols
+  (define (has-duplicates? [syms : (Listof Symbol)]) : Boolean
+    (match syms
+      ['() #f]
+      [(cons first rest)
+       (or (not (equal? (member first rest) #f))
+           (has-duplicates? rest))]))
+   */
+  def hasDuplicates(syms: List[Symbol]): Boolean = syms match {
+    case Nil => false
+    case head :: tail => tail.contains(head) || hasDuplicates(tail)
+  }
+
   def main(args: Array[String]): Unit = {
     println("Hello world!")
     var g = validId(Symbol("then"));
