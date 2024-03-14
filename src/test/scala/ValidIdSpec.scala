@@ -95,7 +95,7 @@ class ValidIdSpec extends  AnyFunSuite {
     }
     exception.getMessage should be("OAZO: Incorrect number of arguments")
   }
-33
+
   test("AppC throws error when the function is not a CloV or PrimOp") {
     val notAFunction = NumC(42.0)
     val app = AppC(notAFunction, List())
