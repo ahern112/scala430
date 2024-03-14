@@ -59,6 +59,114 @@ object Main {
     case head :: tail => tail.contains(head) || hasDuplicates(tail)
   }
 
+
+  /*
+  ;; Checks if list is all symbols
+  (define (all-symbols? [s : (Listof Any)]) : Boolean
+    (match s
+      ['() #t]
+      [(cons f r)
+       (and (symbol? f) (all-symbols? r))]))
+   */
+  def allSymbols(s: List[Any]): Boolean = s match {
+    case Nil => true
+    case (head: Symbol) :: tail => allSymbols(tail)
+    case _ => false
+  }
+
+  def lookup(id: Symbol, env: Env): Value = env match {
+    case Nil => throw new Exception(s"OAZO: Name not found $id")
+    case Binding(sym, value) :: rest =>
+      if (sym == id) value
+      else lookup(id, rest)
+  }
+
+  def extend(params: List[Symbol], argsEval: List[Value], env: Env): Env = params.zip(argsEval).map {
+    case (param, argVal) => Binding(param, argVal)
+  } ::: env
+
+  def addop(args: List[Value]): Value = args match {
+    case NumV(a) :: NumV(b) :: Nil => NumV(a + b)
+    case _ => throw new Exception("OAZO: + expects 2 numbers")
+  }
+
+  def subop(args: List[Value]): Value = args match {
+    case NumV(a) :: NumV(b) :: Nil => NumV(a - b)
+    case _ => throw new Exception("OAZO: - expects 2 numbers")
+  }
+
+  def mulop(args: List[Value]): Value = args match {
+    case NumV(a) :: NumV(b) :: Nil => NumV(a * b)
+    case _ => throw new Exception("OAZO: * expects 2 numbers")
+  }
+
+  def divop(args: List[Value]): Value = args match {
+    case NumV(a) :: NumV(b) :: Nil =>
+      if (b != 0) NumV(a / b)
+      else throw new Exception("OAZO: Division by zero")
+    case _ => throw new Exception("OAZO: / expects 2 numbers")
+  }
+
+  def ifleqop(args: List[Value]): Value = args match {
+    case NumV(a) :: NumV(b) :: Nil => BoolV(a <= b)
+    case _ => throw new Exception("OAZO: <= expects 2 numbers")
+  }
+
+  def equalop(args: List[Value]): Value = args match {
+    case NumV(a) :: NumV(b) :: Nil => BoolV(a == b)
+    case StrV(a) :: StrV(b) :: Nil => BoolV(a == b)
+    case BoolV(a) :: BoolV(b) :: Nil => BoolV(a == b)
+    case _ => BoolV(false)
+  }
+
+  def errorop(args: List[Value]): Value = args match {
+    case v :: Nil => throw new Exception(s"OAZO: user-error ${v.toString}")
+    case _ => throw new Exception("OAZO: error expects a single argument")
+  }
+
+  // Define topEnv
+  val topEnv: Env = List(
+    Binding(Symbol("+"), PrimOp(addop)),
+    Binding(Symbol("-"), PrimOp(subop)),
+    Binding(Symbol("*"), PrimOp(mulop)),
+    Binding(Symbol("/"), PrimOp(divop)),
+    Binding(Symbol("<="), PrimOp(ifleqop)),
+    Binding(Symbol("equal"), PrimOp(equalop)),
+    Binding(Symbol("true"), BoolV(true)),
+    Binding(Symbol("false"), BoolV(false)),
+    Binding(Symbol("error"), PrimOp(errorop)),
+    Binding(Symbol("x"), NumV(3)),
+  )
+
+
+  def interp(exp: ExprC, env: Env): Value = exp match {
+    case NumC(n) => NumV(n) // tested
+    case StringC(s) => StrV(s) // tested
+    case IfC(test, thenn, elsee) =>
+      interp(test, env) match {
+        case BoolV(true) => interp(thenn, env) // tested
+        case BoolV(false) => interp(elsee, env) // tested
+        case _ => throw new RuntimeException("OAZO: Test did not return a boolean") // tested
+      }
+    case IdC(id) => lookup(id, env) //tested
+    case LamC(args, body) => CloV(args, body, env) // tested
+    case AnonC(args, body) => CloV(args, body, env) // tested
+    case AppC(fun, args) => // tested
+      interp(fun, env) match {
+        case CloV(params, body, closureEnv) =>
+          if (params.length != args.length) {
+            throw new RuntimeException("OAZO: Incorrect number of arguments") // tested
+          } else {
+            val argsEval = args.map(arg => interp(arg, env))
+            interp(body, extend(params, argsEval, closureEnv)) // tested
+          }
+        case PrimOp(f) => f(args.map(arg => interp(arg, env))) // tested
+        case _ => throw new RuntimeException("OAZO: Not a function") // tested
+      }
+    case _ => throw new RuntimeException("OAZO: Invalid expression") // tested
+  }
+
+
   def main(args: Array[String]): Unit = {
     println("Hello world!")
     var g = validId(Symbol("then"));
